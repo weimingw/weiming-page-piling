@@ -1,31 +1,49 @@
+import { useState } from 'react';
+import { SwitchTransition, CSSTransition } from 'react-transition-group';
+import './app.scss';
 
-const App = () => <div>
-    <h1>H1 text</h1>
-    <p>Lorem ipsum dolor</p>
-    <p>Lorem ipsum dolor</p>
-    <h2>H2 text</h2>
-    <p>Lorem ipsum dolor</p>
-    <p>Lorem ipsum dolor</p>
-    <h3>H3 text</h3>
-    <p>Lorem ipsum dolor</p>
-    <p>Lorem ipsum dolor</p>
-    <h4>H4 text</h4>
-    <p>Lorem ipsum dolor</p>
-    <p>Lorem ipsum dolor</p>
-    <h5>H5 text</h5>
-    <p>Lorem ipsum dolor</p>
-    <p>Lorem ipsum dolor</p>
-    <h6>H6 text</h6>
-    <p>Lorem ipsum dolor</p>
-    <p>Lorem ipsum dolor</p>
+const App = () => {
+    return <Foo></Foo>;
+};
 
-    <button>Some text</button>
-    <input type='button' value='Some text' />
-    <label>
-        <input type='checkbox' />
-        <span>Some text</span>
-    </label>
-    <a href='https://www.google.com'>Standard link</a>
-</div>;
+function Foo(props) {
+    const [bool, setBool] = useState();
+    return (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <button onClick={() => setBool(!bool)}>Toggle</button>
+            <SwitchTransition mode="out-in" className='container'>
+                <CSSTransition
+                    key={bool}
+                    classNames="in-out"
+                    timeout={600}
+                >
+                    {bool ? (
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                position: 'absolute',
+                                top: 0,
+                                background: 'green',
+                                zIndex: -1,
+                            }}
+                        >&nbsp;</div>
+                    ) : (
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                position: 'absolute',
+                                top: 0,
+                                background: 'blue',
+                                zIndex: -1,
+                            }}
+                        >&nbsp;</div>
+                    )}
+                </CSSTransition>
+            </SwitchTransition>
+        </div>
+    );
+}
 
 export default App;

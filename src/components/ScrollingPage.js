@@ -3,45 +3,45 @@ import { Transition } from 'react-transition-group';
 import './ScrollingPage.scss';
 
 export default function ScrollingPage(props) {
-    const [open, setOpen] = useState(0);
-    const [lastOpen, setLastOpen] = useState(0);
+    /** Index of the currently visible view */
+    const [view, setView] = useState(0);
+    /** Index of the last visible view, needed to  */
+    const [lastView, setLastView] = useState(0);
+    /** True if the page is animating the transition to a new section */
     const [transitioning, setTransitioning] = useState(false);
 
-    function startTransition() {
-        setTransitioning(true);
-    }
+    const startTransition = () => setTransitioning(true);
+    const endTransition = () => setTransitioning(false);
 
-    function endTransition() {
-        setTransitioning(false);
-    }
-
-    function changeOpen(newOpen) {
+    /** If not already switching sections, switch the section being viewed */
+    function changeView(newView) {
         if (!transitioning) {
-            setLastOpen(open);
-            setOpen(newOpen);
+            setLastView(view);
+            setView(newView);
         }
     }
 
-    function navigateUp() {
-        if (open > 0) {
-            changeOpen(open - 1);
-        }
-    }
+    /** Switch to the previous section */
+    const navigateUp = () => (view > 0 ? changeView(view - 1) : null);
+    /** Switch to the next section */
+    const navigateDown = () =>
+        view < props.children.length - 1 ? changeView(view + 1) : null;
 
-    function navigateDown() {
-        if (open < props.children.length - 1) {
-            changeOpen(open + 1);
-        }
-    }
-
+    /** 
+     * Wrap each child in a section 
+     * Each section tracks its own scroll position and listens to events that afford moving to a different section
+     * When such an event occurs, it triggers a navigation handler here
+     * Each section also contains a Transition element to animate page piling
+     * The animation used depends on whether the new view is before or after the old view
+    */
     function renderChildren() {
-        const direction = open > lastOpen ? 1 : -1;
+        const direction = view > lastView ? 1 : -1;
         return Children.map(props.children, (child, index) => {
             return (
                 <ScrollingPageSection
                     key={index}
                     direction={direction}
-                    open={index === open}
+                    open={index === view}
                     navigateUp={navigateUp}
                     navigateDown={navigateDown}
                     startTransition={startTransition}
@@ -65,7 +65,7 @@ function ScrollingPageSection(props) {
         startTransition,
         endTransition,
     } = props;
-    const duration = 300;
+    const duration = 400;
 
     function handleScrollBehavior(currentTarget, change) {
         const { clientHeight, scrollHeight, scrollTop } = currentTarget;
@@ -76,25 +76,33 @@ function ScrollingPageSection(props) {
         }
     }
 
-    function onWheel(e) {
-        const { currentTarget, deltaY } = e;
-        handleScrollBehavior(currentTarget, deltaY);
-    }
-
-    function onTouchScroll({ currentTarget, direction }) {
+    /** wheel events happen whenever the scroll wheel is moved, and also when scroll is initiated on a trackpad */
+    const onWheel = (e) => handleScrollBehavior(e.currentTarget, e.deltaY);
+    /** 
+     * Custom event that wraps around a combination of touchmove and touchstart 
+     * The direction is positive when scrolling down, since y values are higher when you scroll down
+     */
+    const onTouchScroll = ({ currentTarget, direction }) =>
         handleScrollBehavior(currentTarget, direction);
-    }
     const { onTouchMove, onTouchStart } = useOnTouchScroll(onTouchScroll);
 
-    function slideDown(node, done) {
+    /** Use Web Animation API to animate a section going up or down */
+    function animateSlide(node, done, direction) {
+        const keyframes = direction > 0 ? 
+        [
+            { transform: `translateY(-100%)`, zIndex: 1, overflowY: 'hidden' },
+            { transform: `translateY(0)`, zIndex: 1, overflowY: 'hidden' },
+        ] :
+        [
+            { transform: `translateY(0)`, zIndex: 1, overflowY: 'hidden' },
+            { transform: `translateY(-100%)`, zIndex: 1, overflowY: 'hidden' },
+        ];
         startTransition();
         node.animate(
-            [
-                { transform: `translateY(-100%)`, zIndex: 1 },
-                { transform: `translateY(0)`, zIndex: 1 },
-            ],
+            keyframes,
             {
-                duration: duration + 20,
+                // a bit extra time to avoid screen flashing when the animation ends and both sections have the same z-index
+                duration: duration + 20, 
                 easing: 'ease-out',
             }
         ).onfinish = () => {
@@ -103,32 +111,23 @@ function ScrollingPageSection(props) {
         };
     }
 
-    function slideUp(node, done) {
-        startTransition();
-        node.animate(
-            [
-                { transform: `translateY(0)`, zIndex: 1 },
-                { transform: `translateY(-100%)`, zIndex: 1 },
-            ],
-            {
-                duration: duration + 10,
-                easing: 'ease-out',
-            }
-        ).onfinish = () => {
-            endTransition();
-            done();
-        };
-    }
+    const slideDown = (node, done) => animateSlide(node, done, 1);
+    const slideUp = (node, done) => animateSlide(node, done, -1);
 
-    function wait(done) {
-        setTimeout(done, duration);
+    /** Make the section stay still */
+    function wait(node, done) {
+        node.style.overflowY = 'hidden';
+        setTimeout(() => {
+            done();
+            node.style.overflowY = null;
+        }, duration);
     }
 
     function animation(node, done) {
         if (open) {
-            direction > 0 ? wait(done) : slideDown(node, done);
+            direction > 0 ? wait(node, done) : slideDown(node, done);
         } else {
-            direction > 0 ? slideUp(node, done) : wait(done);
+            direction > 0 ? slideUp(node, done) : wait(node, done);
         }
     }
 
@@ -158,16 +157,19 @@ function useOnTouchScroll(onTouchScroll) {
     const onTouchStart = useCallback((e) => {
         startLocation.current = e.touches[0].clientY;
     });
-    
-    const onTouchMove = useCallback((e) => {
-        const { touches, currentTarget } = e;
-        // a swipe up is a scroll down, but vertically down is greater y value
-        if (touches[0].clientY > startLocation.current) {
-            onTouchScroll({ direction: -1, touches, currentTarget });
-        } else if (touches[0].clientY < startLocation.current) {
-            onTouchScroll({ direction: 1, touches, currentTarget });
-        }
-    }, [onTouchScroll]);
+
+    const onTouchMove = useCallback(
+        (e) => {
+            const { touches, currentTarget } = e;
+            // a swipe up is a scroll down, but vertically down is greater y value
+            if (touches[0].clientY > startLocation.current) {
+                onTouchScroll({ direction: -1, touches, currentTarget });
+            } else if (touches[0].clientY < startLocation.current) {
+                onTouchScroll({ direction: 1, touches, currentTarget });
+            }
+        },
+        [onTouchScroll]
+    );
 
     return { onTouchStart, onTouchMove };
 }

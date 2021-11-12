@@ -1,4 +1,4 @@
-import { Children, useState } from 'react';
+import { Children, useCallback, useRef, useState } from 'react';
 import { Transition } from 'react-transition-group';
 import './ScrollingPage.scss';
 
@@ -57,8 +57,15 @@ export default function ScrollingPage(props) {
 }
 
 function ScrollingPageSection(props) {
-    const { direction, open, navigateUp, navigateDown, startTransition, endTransition } = props;
-    const duration = 400;
+    const {
+        direction,
+        open,
+        navigateUp,
+        navigateDown,
+        startTransition,
+        endTransition,
+    } = props;
+    const duration = 300;
 
     function handleScrollBehavior(currentTarget, change) {
         const { clientHeight, scrollHeight, scrollTop } = currentTarget;
@@ -74,6 +81,11 @@ function ScrollingPageSection(props) {
         handleScrollBehavior(currentTarget, deltaY);
     }
 
+    function onTouchScroll({ currentTarget, direction }) {
+        handleScrollBehavior(currentTarget, direction);
+    }
+    const { onTouchMove, onTouchStart } = useOnTouchScroll(onTouchScroll);
+
     function slideDown(node, done) {
         startTransition();
         node.animate(
@@ -82,7 +94,7 @@ function ScrollingPageSection(props) {
                 { transform: `translateY(0)`, zIndex: 1 },
             ],
             {
-                duration,
+                duration: duration + 20,
                 easing: 'ease-out',
             }
         ).onfinish = () => {
@@ -99,7 +111,7 @@ function ScrollingPageSection(props) {
                 { transform: `translateY(-100%)`, zIndex: 1 },
             ],
             {
-                duration,
+                duration: duration + 10,
                 easing: 'ease-out',
             }
         ).onfinish = () => {
@@ -129,9 +141,33 @@ function ScrollingPageSection(props) {
             mountOnEnter={true}
             unmountOnExit={true}
         >
-            <div className="scrolling-page-section" onWheel={onWheel}>
+            <div
+                className="scrolling-page-section"
+                onWheel={onWheel}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+            >
                 {props.children}
             </div>
         </Transition>
     );
+}
+
+function useOnTouchScroll(onTouchScroll) {
+    const startLocation = useRef(null);
+    const onTouchStart = useCallback((e) => {
+        startLocation.current = e.touches[0].clientY;
+    });
+    
+    const onTouchMove = useCallback((e) => {
+        const { touches, currentTarget } = e;
+        // a swipe up is a scroll down, but vertically down is greater y value
+        if (touches[0].clientY > startLocation.current) {
+            onTouchScroll({ direction: -1, touches, currentTarget });
+        } else if (touches[0].clientY < startLocation.current) {
+            onTouchScroll({ direction: 1, touches, currentTarget });
+        }
+    }, [onTouchScroll]);
+
+    return { onTouchStart, onTouchMove };
 }

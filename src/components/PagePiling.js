@@ -148,23 +148,24 @@ function PagePilingSection(props) {
 }
 
 function useOnTouchScroll(onTouchScroll) {
-    const startLocation = useRef(null);
-    const onTouchStart = useCallback((e) => {
-        startLocation.current = e.touches[0].clientY;
-    });
+    const lastLocation = useRef(null);
+    const onTouchStart = useCallback(e => {
+        lastLocation.current = e.touches[0].clientY;
+    })
 
     const onTouchMove = useCallback(
         (e) => {
             const { touches, currentTarget } = e;
             // a swipe up is a scroll down, but vertically down is greater y value
-            if (touches[0].clientY > startLocation.current) {
+            if (touches[0].clientY > lastLocation.current) {
                 onTouchScroll({ direction: -1, touches, currentTarget });
-            } else if (touches[0].clientY < startLocation.current) {
+            } else if (touches[0].clientY < lastLocation.current) {
                 onTouchScroll({ direction: 1, touches, currentTarget });
             }
+            lastLocation.current = e.touches[0].clientY;
         },
         [onTouchScroll]
     );
 
-    return { onTouchStart, onTouchMove };
+    return { onTouchMove, onTouchStart };
 }

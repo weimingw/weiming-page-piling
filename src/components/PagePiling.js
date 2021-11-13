@@ -1,10 +1,10 @@
 import { Children, useCallback, useRef, useState } from 'react';
 import { Transition } from 'react-transition-group';
-import './ScrollingPage.scss';
+import './PagePiling.scss';
 
-export default function ScrollingPage(props) {
+export default function PagePiling(props) {
     /** Index of the currently visible view */
-    const [view, setView] = useState(0);
+    const [view, setView] = useState(props.initialView || 0);
     /** Index of the last visible view, needed to  */
     const [lastView, setLastView] = useState(0);
     /** True if the page is animating the transition to a new section */
@@ -18,6 +18,7 @@ export default function ScrollingPage(props) {
         if (!transitioning) {
             setLastView(view);
             setView(newView);
+            props.onViewChange(newView);
         }
     }
 
@@ -27,18 +28,18 @@ export default function ScrollingPage(props) {
     const navigateDown = () =>
         view < props.children.length - 1 ? changeView(view + 1) : null;
 
-    /** 
-     * Wrap each child in a section 
+    /**
+     * Wrap each child in a section
      * Each section tracks its own scroll position and listens to events that afford moving to a different section
      * When such an event occurs, it triggers a navigation handler here
      * Each section also contains a Transition element to animate page piling
      * The animation used depends on whether the new view is before or after the old view
-    */
+     */
     function renderChildren() {
         const direction = view > lastView ? 1 : -1;
         return Children.map(props.children, (child, index) => {
             return (
-                <ScrollingPageSection
+                <PagePilingSection
                     key={index}
                     direction={direction}
                     open={index === view}
@@ -48,15 +49,15 @@ export default function ScrollingPage(props) {
                     endTransition={endTransition}
                 >
                     {child}
-                </ScrollingPageSection>
+                </PagePilingSection>
             );
         });
     }
 
-    return <div className="scrolling-page">{renderChildren()}</div>;
+    return <div className="page-piling">{renderChildren()}</div>;
 }
 
-function ScrollingPageSection(props) {
+function PagePilingSection(props) {
     const {
         direction,
         open,
@@ -78,8 +79,8 @@ function ScrollingPageSection(props) {
 
     /** wheel events happen whenever the scroll wheel is moved, and also when scroll is initiated on a trackpad */
     const onWheel = (e) => handleScrollBehavior(e.currentTarget, e.deltaY);
-    /** 
-     * Custom event that wraps around a combination of touchmove and touchstart 
+    /**
+     * Custom event that wraps around a combination of touchmove and touchstart
      * The direction is positive when scrolling down, since y values are higher when you scroll down
      */
     const onTouchScroll = ({ currentTarget, direction }) =>
@@ -88,24 +89,22 @@ function ScrollingPageSection(props) {
 
     /** Use Web Animation API to animate a section going up or down */
     function animateSlide(node, done, direction) {
-        const keyframes = direction > 0 ? 
-        [
-            { transform: `translateY(-100%)`, zIndex: 1, overflowY: 'hidden' },
-            { transform: `translateY(0)`, zIndex: 1, overflowY: 'hidden' },
-        ] :
-        [
-            { transform: `translateY(0)`, zIndex: 1, overflowY: 'hidden' },
-            { transform: `translateY(-100%)`, zIndex: 1, overflowY: 'hidden' },
-        ];
+        const keyframes =
+            direction > 0
+                ? [
+                      { transform: `translateY(-100%)`, zIndex: 1 },
+                      { transform: `translateY(0)`, zIndex: 1 },
+                  ]
+                : [
+                      { transform: `translateY(0)`, zIndex: 1 },
+                      { transform: `translateY(-100%)`, zIndex: 1 },
+                  ];
         startTransition();
-        node.animate(
-            keyframes,
-            {
-                // a bit extra time to avoid screen flashing when the animation ends and both sections have the same z-index
-                duration: duration + 20, 
-                easing: 'ease-out',
-            }
-        ).onfinish = () => {
+        node.animate(keyframes, {
+            // a bit extra time to avoid screen flashing when the animation ends and both sections have the same z-index
+            duration: duration + 20,
+            easing: 'ease-out',
+        }).onfinish = () => {
             endTransition();
             done();
         };
@@ -115,19 +114,15 @@ function ScrollingPageSection(props) {
     const slideUp = (node, done) => animateSlide(node, done, -1);
 
     /** Make the section stay still */
-    function wait(node, done) {
-        node.style.overflowY = 'hidden';
-        setTimeout(() => {
-            done();
-            node.style.overflowY = null;
-        }, duration);
+    function wait(done) {
+        setTimeout(done, duration);
     }
 
     function animation(node, done) {
         if (open) {
-            direction > 0 ? wait(node, done) : slideDown(node, done);
+            direction > 0 ? wait(done) : slideDown(node, done);
         } else {
-            direction > 0 ? slideUp(node, done) : wait(node, done);
+            direction > 0 ? slideUp(node, done) : wait(done);
         }
     }
 
@@ -141,7 +136,7 @@ function ScrollingPageSection(props) {
             unmountOnExit={true}
         >
             <div
-                className="scrolling-page-section"
+                className="page-piling-section"
                 onWheel={onWheel}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}

@@ -19,7 +19,12 @@ function App() {
             <PageSection variant={1}>
                 <h1>Home Page</h1>
                 <p>On a real personal website, you'd put an intro here!</p>
-                <p>If you're lost, maybe check out the companion article here?</p>
+                <p>
+                    <a href="https://weimingwu.medium.com/23fcde868ed9">
+                        If you're lost, maybe check out the companion article
+                        here?
+                    </a>
+                </p>
             </PageSection>
             <PageSection variant={2}>
                 <h1>About</h1>
